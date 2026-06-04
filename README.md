@@ -2,15 +2,16 @@
 
 Bring back the intentionality of physical music listening to the streaming era.
 
-Modern streaming platforms clutter your library with individual tracks, algorithmic playlists, and temporary saves. If you want to recreate the feeling of standing in front of a physical CD or vinyl shelf, picking an album, and listening to it from front to back, the current UX of streaming apps falls short.
+Modern streaming platforms clutter your library with individual tracks, algorithmic playlists, and temporary saves. 
+To recreate the feeling of standing in front of a physical CD or vinyl shelf, picking an album, and listening to it from front to back, the current UX of streaming apps falls short.
 
-This application acts as a standalone, digital record shelf. Powered by the Discogs API, users can search, curate, and organize a library of pure album references. You can browse your collection, sort it, or roll the dice for a random album.
+This application acts as a standalone, digital record shelf. 
+Powered by the Discogs API, users can search, curate, and organize a library of pure album references. 
+You can browse your collection, sort it, or roll the dice for a random album.
 
-When it is time to listen, the app acts as a remote control. Instead of dealing with complex embedded web players and DRM, the app uses universal deep links to instantly open the selected album directly in your native streaming app of choice (Spotify, Apple Music, YouTube).
+When it is time to listen, the app acts as a remote control. 
+Instead of dealing with complex embedded web players and DRM, the app uses universal deep links to instantly open the selected album directly in your native streaming app of choice (Spotify, Apple Music, YouTube).
 
-## Current State
-
-The foundation of the app is currently being laid out. The core architecture is route-first (src/app), utilizing a robust error-handling policy and network architecture. The Discogs API integration is in place, allowing users to search for albums and view details. The next steps involve implementing user authentication with Supabase, enabling album saving and library management features, and refining the UI/UX for a seamless experience.
 
 ## Tech Stack & Architecture
 
