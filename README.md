@@ -1,4 +1,4 @@
-# Digital Crate
+# Side A
 
 Bring back the intentionality of physical music listening to the streaming era.
 
