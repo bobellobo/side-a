@@ -7,6 +7,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.107.0",
     "@tanstack/react-query": "^5.100.14",
+    "effect": "^3.21.2",
     "expo": "~56.0.8",
     "expo-constants": "~56.0.16",
     "expo-device": "~56.0.4",
@@ -36,6 +37,7 @@
     "babel-plugin-module-resolver": "^5.0.3",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
+    "patch-package": "^8.0.1",
     "prettier-plugin-tailwindcss": "^0.5.11",
     "tailwindcss": "^3.4.17",
     "typescript": "~6.0.3"
@@ -45,8 +47,17 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "clean:metro": "node -e \"const fs=require('fs');const os=require('os');const path=require('path');const targets=[path.join(os.tmpdir(),'metro-cache'),path.join(process.cwd(),'.expo')];for(const p of targets){try{fs.rmSync(p,{recursive:true,force:true,maxRetries:8,retryDelay:250});console.log('removed',p);}catch(e){console.error('failed',p,e.message);process.exitCode=1;}}\"",
+    "web:clean": "npm run clean:metro && npm run web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "patch-package"
   },
-  "private": true
+  "engines": {
+    "node": "22.x"
+  },
+  "private": true,
+  "volta": {
+    "node": "22.13.1"
+  }
 }

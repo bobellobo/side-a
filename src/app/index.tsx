@@ -2,45 +2,23 @@ import { useQuery } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { Text, View } from "react-native";
 
-import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase/supabase";
+import { runEffectPromise } from "@/lib/effect/runEffect";
+import { AppError, formatAppError } from "@/lib/errors/appError";
+import { runHandshakeEffect } from "@/lib/supabase/handshake/handshake.effect";
 
-type HandshakeResult = {
-  sessionPresent: boolean;
-  authHealthStatus: number;
-};
-
-async function runHandshake(): Promise<HandshakeResult> {
-  const { data, error } = await supabase.auth.getSession();
-
-  if (error) {
-    throw error;
-  }
-
-  const response = await fetch(`${supabaseUrl}/auth/v1/health`, {
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Supabase auth health check failed with ${response.status}`);
-  }
-
-  return {
-    sessionPresent: Boolean(data.session),
-    authHealthStatus: response.status,
-  };
-}
 
 export default function Index() {
-  const isClientRuntime = typeof window !== "undefined";
+  
+const isClientRuntime = typeof window !== "undefined";
+  
 
-  const handshake = useQuery({
-    queryKey: ["supabase-handshake"],
-    queryFn: runHandshake,
-    enabled: isClientRuntime,
-  });
+  const handshake = 
+    useQuery<{ sessionPresent: boolean; authHealthStatus: number }, AppError>({
+        queryKey: ["supabase-handshake"],
+        queryFn: () => runEffectPromise(runHandshakeEffect),
+        enabled: isClientRuntime,
+        retry: false
+    });
 
   const statusLabel = !isClientRuntime
     ? "Skipped during static render"
@@ -78,7 +56,7 @@ export default function Index() {
 
         <Text className="mt-2 text-xs uppercase tracking-widest text-slate-500">Error</Text>
         <Text className="text-[15px] leading-[22px] text-slate-900">
-          {handshake.error instanceof Error ? handshake.error.message : "None"}
+          {handshake.error ? formatAppError(handshake.error) : "None"}
         </Text>
       </View>
     </View>
