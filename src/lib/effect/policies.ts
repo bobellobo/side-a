@@ -1,4 +1,4 @@
-import { AppError, appError } from "@/lib/errors/appError";
+import { AppError, appError, isRetryableAppError } from "@/lib/errors";
 import { pipe } from "effect";
 import { catchAll, fail, flatMap, timeoutFail } from "effect/Effect";
 import { sleep } from "effect/TestClock";
@@ -17,9 +17,6 @@ const defaultNetworkPolicy: NetworkPolicyConfig = {
   maxRetries : 2,
   baseDelayMs: 300
 };
-
-const isRetryableAppError = (error: AppError): boolean => 
-  error._tag === "TimeoutError" || error._tag === "UnexpectedError"
 
 const stopRetry = (attempt: number, maxRetries: number) => (error: AppError): boolean => 
     !isRetryableAppError(error) || attempt >= maxRetries;

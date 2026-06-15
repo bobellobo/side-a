@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { Text, View } from "react-native";
 
-import { runEffectPromise } from "@/lib/effect/runEffect";
-import { AppError, formatAppError } from "@/lib/errors/appError";
+import { runEff } from "@/lib/effect/runEffect";
+import { AppError, formatAppError } from "@/lib/errors";
 import { runHandshakeEffect } from "@/lib/supabase/handshake/handshake.effect";
 
 
@@ -15,7 +15,7 @@ const isClientRuntime = typeof window !== "undefined";
   const handshake = 
     useQuery<{ sessionPresent: boolean; authHealthStatus: number }, AppError>({
         queryKey: ["supabase-handshake"],
-        queryFn: () => runEffectPromise(runHandshakeEffect),
+        queryFn: () => runEff(runHandshakeEffect),
         enabled: isClientRuntime,
         retry: false
     });

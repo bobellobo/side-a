@@ -1,5 +1,5 @@
 import { withNetworkPolicy } from "@/lib/effect/policies";
-import { AppError, appError } from "@/lib/errors/appError";
+import { AppError, appError } from "@/lib/errors";
 import { supabase, supabaseAnonKey, supabaseUrl } from "@/lib/supabase/supabase";
 import { pipe } from "effect";
 import { all, fail, flatMap, map, succeed, tryPromise } from "effect/Effect";
