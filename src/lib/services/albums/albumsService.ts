@@ -1,5 +1,5 @@
 import { Eff } from "@/lib/effect/types";
-import { AppError, appError } from "@/lib/errors";
+import { DatabaseError, unexpectedError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/supabase";
 import { Context, Layer, pipe } from "effect";
 import * as Effect from "effect/Effect";
@@ -7,7 +7,7 @@ import * as Effect from "effect/Effect";
 import { AddUserAlbumInput } from "./albums.types";
 
 export interface UserAlbumsServiceInterface {
-  readonly addAlbumIdForUser: (input: AddUserAlbumInput) => Eff<void, AppError>;
+  readonly addAlbumIdForUser: (input: AddUserAlbumInput) => Eff<void, DatabaseError>;
 }
 
 export const UserAlbumsService = Context.GenericTag<UserAlbumsServiceInterface>("UserAlbumsService");
@@ -15,11 +15,11 @@ export const UserAlbumsService = Context.GenericTag<UserAlbumsServiceInterface>(
 export const mockUserAlbumsServiceLayer = Layer.succeed(UserAlbumsService, {
   addAlbumIdForUser: (input) => {
     if (!input.userId) {
-      return Effect.fail(appError.unexpected("Missing user id", "Missing signed-in user id."));
+      return Effect.fail(unexpectedError("Missing signed-in user id.", "Missing user id"));
     }
 
     if (!input.discogsAlbumId) {
-      return Effect.fail(appError.unexpected("Missing album id", "No selected album id to save."));
+      return Effect.fail(unexpectedError("No selected album id to save.", "Missing album id"));
     }
 
     return Effect.void;
@@ -33,12 +33,12 @@ export const supabaseUserAlbumsServiceLayer = Layer.succeed(UserAlbumsService, {
           user_id: input.userId,
           discogs_album_id: input.discogsAlbumId,
         }),
-        catch: (cause) => appError.unexpected(cause, "Unable to write album to Supabase.")
+        catch: (cause) => unexpectedError("Unable to write album to Supabase.", cause)
     })
   )
 });
 
-export const addAlbumIdForUser = (input: AddUserAlbumInput): Eff<void, AppError> =>
+export const addAlbumIdForUser = (input: AddUserAlbumInput): Eff<void, DatabaseError> =>
   pipe(
     UserAlbumsService,
     Effect.flatMap((service) => service.addAlbumIdForUser(input)),

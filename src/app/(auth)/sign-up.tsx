@@ -1,4 +1,4 @@
-import { AppError, appErrorMessage, toFailureError } from "@/lib/errors";
+import { AuthError, errorMessage, toAuthFailure } from "@/lib/errors";
 import { signUpWithEmail } from "@/lib/services/auth/authService";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 
-const handleFailure = toFailureError("Network", "Something went wrong during sign up.");
+const handleFailure = toAuthFailure("Something went wrong during sign up.");
 
 const validateEmail = (email: string) => 
   email.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -19,7 +19,7 @@ export default function SignUpScreen() {
   const [email,      setEmail ] = useState("");
   const [password,   setPassword ] = useState("");
   const [submitting, setSubmitting ] = useState(false);
-  const [error,      setError ] = useState<AppError | null>(null);
+  const [error,      setError ] = useState<AuthError | null>(null);
 
   const canSubmit = useMemo(
     () => validateEmail(email) && validatePassword(password) && !submitting,
@@ -96,7 +96,7 @@ export default function SignUpScreen() {
 
         {error ? (
           <View className="mt-4 rounded-xl border border-rose-300 bg-rose-100 px-4 py-3">
-            <Text className="text-sm text-rose-700">{appErrorMessage(error)}</Text>
+            <Text className="text-sm text-rose-700">{errorMessage(error)}</Text>
           </View>
         ) : null}
 

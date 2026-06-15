@@ -1,19 +1,20 @@
-import { AppError } from "@/lib/errors";
+import { Eff } from "@/lib/effect/types";
+import { AuthError, supabaseAuthError, unexpectedError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/supabase";
 import { Effect } from "effect";
 import { useCallback } from "react";
 
-import type { AuthAction } from "../types";
 import { fail, flatMap, tryPromise } from "effect/Effect";
+import type { AuthAction } from "../types";
 
 
-const signOutEffect = tryPromise({
+const signOutEffect: Eff<void, AuthError> = tryPromise({
   try: () => supabase.auth.signOut(),
-  catch: (cause) => new AppError("Network", "Unable to sign out.", cause),
+  catch: (cause) => unexpectedError("Unable to sign out.", cause),
 }).pipe(
   flatMap(({ error }) =>
     error 
-      ? fail(new AppError("Auth", error.message, error)) 
+      ? fail(supabaseAuthError(error.message, error)) 
       : Effect.void
   )
 );
@@ -22,8 +23,8 @@ export const useAuthSignOut = (dispatch: React.Dispatch<AuthAction>): (() => Pro
   useCallback(() => {
     const program = signOutEffect.pipe(
       Effect.match({
-        onFailure: (appError) => {
-          dispatch({ _tag: "AUTH_ERROR", error: appError });
+        onFailure: (error) => {
+          dispatch({ _tag: "AUTH_ERROR", error });
         },
         onSuccess: () => {
           // Note: Usually Supabase's onAuthStateChange will trigger a sign-out eventautomatically, but if specific dispatch is needed add it here.

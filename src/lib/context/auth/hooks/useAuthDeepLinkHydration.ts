@@ -1,4 +1,10 @@
-import { AppError } from "@/lib/errors";
+import {
+  AuthError,
+  SupabaseAuthError,
+  UnexpectedError,
+  supabaseAuthError,
+  unexpectedError,
+} from "@/lib/errors";
 import { supabase } from "@/lib/supabase/supabase";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { Effect, Fiber, Option, pipe } from "effect";
@@ -39,65 +45,71 @@ const getAuthParams = (url: string): URLSearchParams => {
   return params;
 };
 
-const isAuthLink = (url: string): boolean => {
-  const queryKeys = Array.from(getAuthParams(url).keys());
-  return pipe(
-    A.intersection( queryKeys, authParams ),
-    A.isNonEmptyReadonlyArray
-  );
+
+const isAuthLink = (url: string): boolean => pipe(
+  getAuthParams(url),
+  (params) => Array.from(params.keys()),
+  (keys) => A.intersection(keys, authParams),
+  A.isNonEmptyReadonlyArray
+);
+
+type SupabaseAuthResponse = {
+  readonly error: { readonly message: string } | null;
 };
 
-const exchangeSessionEffect = (url: string): Eff<void, AppError> =>
-  pipe(
+const toAuthError = (fallbackMessage: string, cause: unknown): AuthError => {
+  if (cause instanceof SupabaseAuthError || cause instanceof UnexpectedError) {
+    return cause;
+  }
+
+  return unexpectedError(fallbackMessage, cause);
+};
+
+const runSupabaseAuthVoid = (
+  operation: () => Promise<SupabaseAuthResponse>,
+  fallbackMessage: string,
+): Eff<void, AuthError> =>
     tryPromise({
-      try: () => supabase.auth.exchangeCodeForSession(url),
-      catch: (cause) =>
-        AppError.fromUnknown("Network", cause, "Unable to process authentication link."),
-    }),
-    flatMap(({ error }) =>
-      error
-        ? Effect.fail(new AppError("Auth", error.message, error))
-        : Effect.void,
-    ),
+      try: async () => {
+        const response = await operation();
+
+        if (response.error) {
+          throw supabaseAuthError(response.error.message, response.error);
+        }
+      },
+      catch: (cause) => toAuthError(fallbackMessage, cause),
+    })
+  
+
+
+const exchangeSessionEffect = (url: string): Eff<void, AuthError> =>
+  runSupabaseAuthVoid(
+    () => supabase.auth.exchangeCodeForSession(url),
+    "Unable to process authentication link.",
   );
 
-const setSessionEffect = (accessToken: string, refreshToken: string): Eff<void, AppError> =>
-  pipe(
-    tryPromise({
-      try: () =>
-        supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        }),
-      catch: (cause) =>
-        AppError.fromUnknown("Network", cause, "Unable to hydrate auth session from recovery link."),
-    }),
-    flatMap(({ error }) =>
-      error
-        ? Effect.fail(new AppError("Auth", error.message, error))
-        : Effect.void,
-    ),
+const setSessionEffect = (accessToken: string, refreshToken: string): Eff<void, AuthError> =>
+  runSupabaseAuthVoid(
+    () =>
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }),
+    "Unable to hydrate auth session from recovery link.",
   );
 
-const verifyOtpEffect = (tokenHash: string, type: EmailOtpType): Eff<void, AppError> =>
-  pipe(
-    tryPromise({
-      try: () =>
-        supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type,
-        }),
-      catch: (cause) =>
-        AppError.fromUnknown("Network", cause, "Unable to verify recovery token."),
-    }),
-    flatMap(({ error }) =>
-      error
-        ? Effect.fail(new AppError("Auth", error.message, error))
-        : Effect.void,
-    ),
+const verifyOtpEffect = (tokenHash: string, type: EmailOtpType): Eff<void, AuthError> =>
+  runSupabaseAuthVoid(
+    () =>
+      supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type,
+      }),
+    "Unable to verify recovery token.",
   );
 
-const hydrateSessionFromAuthUrl = (url: string): Eff<void, AppError> => {
+const hydrateSessionFromAuthUrl = (url: string): Eff<void, AuthError> => {
+
   const params = getAuthParams(url);
   const code = params.get("code");
   const accessToken = params.get("access_token");
@@ -121,17 +133,13 @@ const hydrateSessionFromAuthUrl = (url: string): Eff<void, AppError> => {
 };
 
 // Retrieve the initial URL from Expo Linking
-const getInitialUrlEffect: Eff<Option.Option<string>, AppError> = pipe(
+const getInitialUrlEffect: Eff<Option.Option<string>, AuthError> = pipe(
   tryPromise({
     try: () => Linking.getInitialURL(),
-    catch: (cause) => AppError.fromUnknown("Network", cause, "Unable to read initial URL for deep link hydration.")
+    catch: (cause) => unexpectedError("Unable to read initial URL for deep link hydration.", cause)
   }),
   map(Option.fromNullable)
 );
-
-
-
-
 
 export const useAuthDeepLinkHydration = (dispatch: React.Dispatch<AuthAction>): boolean => {
  
@@ -145,7 +153,7 @@ export const useAuthDeepLinkHydration = (dispatch: React.Dispatch<AuthAction>): 
 
         return hydrateSessionFromAuthUrl(url).pipe(
           Effect.match({
-            onFailure: (appError) => dispatch({ _tag: "AUTH_ERROR", error: appError }),
+            onFailure: (error) => dispatch({ _tag: "AUTH_ERROR", error }),
             onSuccess: () => {} // Handled by Supabase auth state change listener
           })
         );

@@ -1,12 +1,12 @@
 import { Eff } from "@/lib/effect/types";
-import { AppError, appError } from "@/lib/errors";
+import { DiscogsError, httpError, missingEnvError, unexpectedError } from "@/lib/errors";
 import { Context, Layer, pipe } from "effect";
 import * as Effect from "effect/Effect";
 
 import { DiscogsReleases, DiscogsSearchInput } from "./discogs.types";
 
 export interface DiscogsServiceInterface {
-  readonly searchReleases: (input: DiscogsSearchInput) => Eff<DiscogsReleases, AppError>;
+  readonly searchReleases: (input: DiscogsSearchInput) => Eff<DiscogsReleases, DiscogsError>;
 }
 
 export const DiscogsService = Context.GenericTag<DiscogsServiceInterface>("DiscogsService");
@@ -23,7 +23,7 @@ export const mockDiscogsServiceLayer = Layer.succeed(DiscogsService, {
     const normalizedQuery = input.query.trim().toLowerCase();
 
     if (!normalizedQuery) {
-      return Effect.fail(appError.unexpected("Missing query", "Search query is required."));
+      return Effect.fail(unexpectedError("Search query is required.", "Missing query"));
     }
 
     return Effect.succeed(
@@ -41,7 +41,7 @@ export const discogsApiServiceLayer = Layer.succeed(DiscogsService, {
 
       if (!token) {
         return yield* Effect.fail(
-          appError.missingEnv("Missing EXPO_PUBLIC_DISCOGS_TOKEN for Discogs API requests."),
+          missingEnvError("Missing EXPO_PUBLIC_DISCOGS_TOKEN for Discogs API requests."),
         );
       }
 
@@ -55,11 +55,11 @@ export const discogsApiServiceLayer = Layer.succeed(DiscogsService, {
               },
             },
           ),
-        catch: (cause) => appError.unexpected(cause, "Unable to reach Discogs API."),
+        catch: (cause) => unexpectedError("Unable to reach Discogs API.", cause),
       });
 
       if (!response.ok) {
-        return yield* Effect.fail(appError.http(response.status, "Discogs API request failed."));
+        return yield* Effect.fail(httpError(response.status, "Discogs API request failed."));
       }
 
       // Future implementation: decode response payload and map to DiscogsRelease[].
@@ -68,7 +68,7 @@ export const discogsApiServiceLayer = Layer.succeed(DiscogsService, {
 });
 
 
-export const searchDiscogsReleases = (input: DiscogsSearchInput,): Eff<DiscogsReleases, AppError> => pipe(
+export const searchDiscogsReleases = (input: DiscogsSearchInput,): Eff<DiscogsReleases, DiscogsError> => pipe(
     DiscogsService,
     Effect.flatMap((service) => service.searchReleases(input)),
     Effect.provide(mockDiscogsServiceLayer)

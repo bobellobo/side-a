@@ -1,4 +1,4 @@
-import { AppError, appErrorMessage, toFailureError } from "@/lib/errors";
+import { AuthError, errorMessage, toAuthFailure } from "@/lib/errors";
 import { updatePassword } from "@/lib/services/auth/authService";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -7,13 +7,13 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 
-const handleFailure = toFailureError("Network", "Something went wrong while updating the password.");
+const handleFailure = toAuthFailure("Something went wrong while updating the password.");
 
 export default function ResetPasswordScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<AppError | null>(null);
+  const [error, setError] = useState<AuthError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const isValidPassword = password.length >= 8;
@@ -95,7 +95,7 @@ export default function ResetPasswordScreen() {
 
         {error ? (
           <View className="mt-4 rounded-xl border border-rose-300 bg-rose-100 px-4 py-3">
-            <Text className="text-sm text-rose-700">{appErrorMessage(error)}</Text>
+            <Text className="text-sm text-rose-700">{errorMessage(error)}</Text>
           </View>
         ) : null}
 

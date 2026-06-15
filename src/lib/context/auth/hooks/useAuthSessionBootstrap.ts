@@ -1,23 +1,34 @@
-import { AppError } from "@/lib/errors";
+import { Eff } from "@/lib/effect/types";
+import { AuthError, SupabaseAuthError, UnexpectedError, supabaseAuthError, unexpectedError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/supabase";
-import { Effect, pipe, Fiber } from "effect";
+import type { Session } from "@supabase/supabase-js";
+import { Effect, Fiber, pipe } from "effect";
 import { useEffect } from "react";
 
 import type { AuthAction } from "../types";
-import { flatMap } from "effect/Effect";
+
+const toAuthError = (cause: unknown): AuthError => {
+  if (cause instanceof SupabaseAuthError || cause instanceof UnexpectedError) {
+    return cause;
+  }
+
+  return unexpectedError("Unable to read persisted auth session.", cause);
+};
 
 
-
-const bootstrap = pipe(
+const bootstrap: Eff<Session | null, AuthError> = pipe(
   Effect.tryPromise({
-    try: () => supabase.auth.getSession(), 
-    catch: (cause) =>    AppError.fromUnknown("Network", cause, "Unable to read persisted auth session.")
-  }),
-  flatMap( response => 
-    response.error 
-      ? Effect.fail( new AppError("Auth", response.error.message, response.error) ) 
-      : Effect.succeed(response.data.session)
-  )
+    try: async () => {
+      const response = await supabase.auth.getSession();
+
+      if (response.error) {
+        throw supabaseAuthError(response.error.message, response.error);
+      }
+
+      return response.data.session;
+    },
+    catch: toAuthError,
+  })
 );
 
 

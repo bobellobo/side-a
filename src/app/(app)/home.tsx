@@ -1,11 +1,15 @@
 import { useAuth } from "@/lib/context/auth/authProvider";
-import { runEff } from "@/lib/effect/runEffect";
-import { AppError, formatAppError } from "@/lib/errors";
+import { DatabaseError, DiscogsError, formatError, toDatabaseFailure, toDiscogsFailure } from "@/lib/errors";
 import { addAlbumIdForUser } from "@/lib/services/albums/albumsService";
 import { DiscogsRelease } from "@/lib/services/discogs/discogs.types";
 import { searchDiscogsReleases } from "@/lib/services/discogs/discogsService";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+
+const toSearchError = toDiscogsFailure("Unable to search Discogs right now.");
+const toSaveError = toDatabaseFailure("Unable to save album id right now.");
 
 export default function HomeScreen() {
   const { session, signOut, status, lastEvent } = useAuth();
@@ -13,9 +17,9 @@ export default function HomeScreen() {
   const [results, setResults] = useState<ReadonlyArray<DiscogsRelease>>([]);
   const [selectedDiscogsId, setSelectedDiscogsId] = useState<number | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<AppError | null>(null);
+  const [searchError, setSearchError] = useState<DiscogsError | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [saveError, setSaveError] = useState<AppError | null>(null);
+  const [saveError, setSaveError] = useState<DatabaseError | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
   const onSearch = async () => {
@@ -27,15 +31,17 @@ export default function HomeScreen() {
     setSearchError(null);
     setSelectedDiscogsId(null);
 
-    try {
-      const nextResults = await runEff(searchDiscogsReleases({ query }));
-      setResults(nextResults);
-    } catch (error) {
+    const exit = await Effect.runPromiseExit(searchDiscogsReleases({ query }));
+
+    if (Exit.isFailure(exit)) {
       setResults([]);
-      setSearchError(AppError.fromUnknown("Network", error, "Unable to search Discogs right now."));
-    } finally {
+      setSearchError(toSearchError(exit.cause));
       setSearchLoading(false);
+      return;
     }
+
+    setResults(exit.value);
+    setSearchLoading(false);
   };
 
   const onAddAlbum = async () => {
@@ -47,19 +53,21 @@ export default function HomeScreen() {
     setSaveError(null);
     setSaveNotice(null);
 
-    try {
-      await runEff(
-        addAlbumIdForUser({
-          userId: session.user.id,
-          discogsAlbumId: selectedDiscogsId,
-        }),
-      );
-      setSaveNotice(`Album id ${selectedDiscogsId} is queued to be persisted.`);
-    } catch (error) {
-      setSaveError(AppError.fromUnknown("Database", error, "Unable to save album id right now."));
-    } finally {
+    const exit = await Effect.runPromiseExit(
+      addAlbumIdForUser({
+        userId: session.user.id,
+        discogsAlbumId: selectedDiscogsId,
+      }),
+    );
+
+    if (Exit.isFailure(exit)) {
+      setSaveError(toSaveError(exit.cause));
       setSaveLoading(false);
+      return;
     }
+
+    setSaveNotice(`Album id ${selectedDiscogsId} is queued to be persisted.`);
+    setSaveLoading(false);
   };
 
   return (
@@ -95,7 +103,7 @@ export default function HomeScreen() {
           </Pressable>
 
           {searchError ? (
-            <Text className="mt-3 text-sm text-rose-700">{formatAppError(searchError)}</Text>
+            <Text className="mt-3 text-sm text-rose-700">{formatError(searchError)}</Text>
           ) : null}
         </View>
 
@@ -146,7 +154,7 @@ export default function HomeScreen() {
           </Pressable>
 
           {saveError ? (
-            <Text className="mt-3 text-sm text-rose-700">{formatAppError(saveError)}</Text>
+            <Text className="mt-3 text-sm text-rose-700">{formatError(saveError)}</Text>
           ) : null}
 
           {saveNotice ? (

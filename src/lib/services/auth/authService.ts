@@ -1,5 +1,5 @@
 import { Eff } from "@/lib/effect/types";
-import { AppError } from "@/lib/errors";
+import { AuthError, supabaseAuthError, unexpectedError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { Context, Layer, pipe } from "effect";
@@ -8,22 +8,11 @@ import { fail, flatMap, succeed, tryPromise } from "effect/Effect";
 import * as Linking from "expo-linking";
 import { RequestPasswordResetInput, SignInWithEmailInput, SignUpWithEmailInput, UpdatePasswordInput } from "./auth.types";
 
-
-
-const toAuthError = (cause: unknown, fallbackMessage: string): AppError => {
-  if (cause && typeof cause === "object" && "message" in cause) {
-    const message = String(cause.message ?? fallbackMessage);
-    return new AppError("Auth", message, cause);
-  }
-
-  return AppError.fromUnknown("Network", cause, fallbackMessage);
-};
-
 export interface AuthServiceInterface {
-  readonly signInWithEmail      : (input: SignInWithEmailInput     ) => Eff<Session, AppError>;
-  readonly signUpWithEmail      : (input: SignUpWithEmailInput     ) => Eff<Session | null, AppError>;
-  readonly requestPasswordReset : (input: RequestPasswordResetInput) => Eff<void, AppError>;
-  readonly updatePassword       : (input: UpdatePasswordInput      ) => Eff<void, AppError>;
+  readonly signInWithEmail      : (input: SignInWithEmailInput     ) => Eff<Session, AuthError>;
+  readonly signUpWithEmail      : (input: SignUpWithEmailInput     ) => Eff<Session | null, AuthError>;
+  readonly requestPasswordReset : (input: RequestPasswordResetInput) => Eff<void, AuthError>;
+  readonly updatePassword       : (input: UpdatePasswordInput      ) => Eff<void, AuthError>;
 }
 
 export const AuthService = Context.GenericTag<AuthServiceInterface>("AuthService");
@@ -35,19 +24,16 @@ export const liveAuthServiceLayer = Layer.succeed(AuthService, {
       tryPromise({
         try: () =>
           supabase.auth.signInWithPassword({ email, password }),
-        catch: (cause) => toAuthError(cause, "Unable to sign in right now."),
+        catch: (cause) => unexpectedError("Unable to sign in right now.", cause),
       }),
       flatMap(({ data, error }) => {
         if (error) {
-          return fail(new AppError("Auth", error.message, error));
+          return fail(supabaseAuthError(error.message, error));
         }
 
         if (!data.session) {
           return fail(
-            new AppError(
-              "Auth",
-              "Sign-in succeeded but no active session was returned.",
-            ),
+            supabaseAuthError("Sign-in succeeded but no active session was returned."),
           );
         }
 
@@ -58,11 +44,11 @@ export const liveAuthServiceLayer = Layer.succeed(AuthService, {
     pipe(
       tryPromise({
         try: () => supabase.auth.signUp({ email, password}),
-        catch: (cause) => toAuthError(cause, "Unable to sign up right now."),
+        catch: (cause) => unexpectedError("Unable to sign up right now.", cause),
       }),
       flatMap(({ data, error }) => {
         if (error) {
-          return fail(new AppError("Auth", error.message, error));
+          return fail(supabaseAuthError(error.message, error));
         }
 
         return succeed(data.session ?? null);
@@ -76,10 +62,10 @@ export const liveAuthServiceLayer = Layer.succeed(AuthService, {
             redirectTo: Linking.createURL("/reset-password"),
           }),
         catch: (cause) =>
-          AppError.fromUnknown("Network", cause, "Unable to send reset email right now."),
+          unexpectedError("Unable to send reset email right now.", cause),
       }),
       flatMap(({ error }) =>
-        error ? fail(new AppError("Auth", error.message, error)) : Effect.void,
+        error ? fail(supabaseAuthError(error.message, error)) : Effect.void,
       )
     ),
   updatePassword: (input) =>
@@ -87,38 +73,38 @@ export const liveAuthServiceLayer = Layer.succeed(AuthService, {
       tryPromise({
         try: () => supabase.auth.updateUser({ password: input.password }),
         catch: (cause) =>
-          AppError.fromUnknown("Network", cause, "Unable to update password right now."),
+          unexpectedError("Unable to update password right now.", cause),
       }),
       flatMap(({ error }) =>
-        error ? fail(new AppError("Auth", error.message, error)) : Effect.void,
+        error ? fail(supabaseAuthError(error.message, error)) : Effect.void,
       )
     ),
 });
 
 
 
-export const signInWithEmail = (input: SignInWithEmailInput): Eff<Session, AppError> => 
+export const signInWithEmail = (input: SignInWithEmailInput): Eff<Session, AuthError> => 
   pipe(
     AuthService,
     Effect.flatMap((service) => service.signInWithEmail(input)),
     Effect.provide(liveAuthServiceLayer)
   );
 
-export const signUpWithEmail = (input: SignUpWithEmailInput): Eff<Session | null, AppError> =>
+export const signUpWithEmail = (input: SignUpWithEmailInput): Eff<Session | null, AuthError> =>
   pipe(
     AuthService,
     Effect.flatMap((service) => service.signUpWithEmail(input)),
     Effect.provide(liveAuthServiceLayer)
   );
 
-export const requestPasswordReset = ( input: RequestPasswordResetInput ): Eff<void, AppError> =>
+export const requestPasswordReset = ( input: RequestPasswordResetInput ): Eff<void, AuthError> =>
   pipe(
     AuthService,
     Effect.flatMap((service) => service.requestPasswordReset(input)),
     Effect.provide(liveAuthServiceLayer)
   );
 
-export const updatePassword = ( input: UpdatePasswordInput ): Eff<void, AppError> =>
+export const updatePassword = ( input: UpdatePasswordInput ): Eff<void, AuthError> =>
   pipe(
     AuthService,
     Effect.flatMap((service) => service.updatePassword(input)),

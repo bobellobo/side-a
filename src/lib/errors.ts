@@ -1,7 +1,6 @@
 import * as Cause from "effect/Cause";
+import * as Data from "effect/Data";
 import * as Option from "effect/Option";
-
-export type AppErrorType = "Auth" | "Database" | "Network";
 
 export type AppErrorTag =
   | "MissingEnvError"
@@ -10,96 +9,46 @@ export type AppErrorTag =
   | "TimeoutError"
   | "UnexpectedError";
 
-type AppErrorOptions = {
-  readonly cause?: unknown;
-  readonly status?: number;
-  readonly code?: AppErrorTag;
-  readonly retryable?: boolean;
-};
-
-const defaultCodeByType = (type: AppErrorType): AppErrorTag => {
-  switch (type) {
-    case "Auth":
-      return "SupabaseAuthError";
-    case "Database":
-    case "Network":
-      return "UnexpectedError";
-    default:
-      return "UnexpectedError";
-  }
-};
-
-const isAppErrorOptions = (value: unknown): value is AppErrorOptions =>
-  Boolean(
-    value &&
-      typeof value === "object" &&
-      ("cause" in value || "status" in value || "code" in value || "retryable" in value),
-  );
-
-export class AppError extends Error {
-  readonly _tag: AppErrorTag;
-  readonly type: AppErrorType;
+type AppErrorPayload = {
+  readonly message: string;
   readonly cause?: unknown;
   readonly status?: number;
   readonly retryable: boolean;
-
-  constructor(type: AppErrorType, message: string, cause?: unknown);
-  constructor(type: AppErrorType, message: string, options?: AppErrorOptions);
-  constructor(type: AppErrorType, message: string, causeOrOptions?: unknown) {
-    
-    super(message);
-    this.name = "AppError";
-    this.type = type;
-
-    const options = isAppErrorOptions(causeOrOptions)
-      ? causeOrOptions
-      : { cause: causeOrOptions };
-
-    this.cause = options.cause;
-    this.status = options.status;
-    this._tag = options.code ?? defaultCodeByType(type);
-    this.retryable =
-      options.retryable ??
-      (this._tag === "TimeoutError" || this._tag === "UnexpectedError");
-  }
-
-  static fromUnknown(type: AppErrorType, cause: unknown, fallbackMessage: string): AppError {
-    if (cause instanceof AppError) {
-      return cause;
-    }
-
-    if (cause instanceof Error) {
-      return new AppError(type, cause.message || fallbackMessage, {
-        cause,
-        code: defaultCodeByType(type),
-      });
-    }
-
-    return new AppError(type, fallbackMessage, {
-      cause,
-      code: defaultCodeByType(type),
-    });
-  }
-}
-
-export const appError = {
-  missingEnv: (message: string): AppError =>
-    new AppError("Network", message, { code: "MissingEnvError", retryable: false }),
-  supabaseAuth: (message: string): AppError =>
-    new AppError("Auth", message, { code: "SupabaseAuthError", retryable: false }),
-  http: (status: number, message: string): AppError =>
-    new AppError("Network", message, { code: "HttpError", status, retryable: false }),
-  timeout: (message: string): AppError =>
-    new AppError("Network", message, { code: "TimeoutError", retryable: true }),
-  unexpected: (cause: unknown, message = "Unexpected error"): AppError =>
-    new AppError("Network", message, {
-      cause,
-      code: "UnexpectedError",
-      retryable: true,
-    }),
 };
 
-export function formatAppError(error: AppError): string {
+export class MissingEnvError   extends Data.TaggedError("MissingEnvError")  <AppErrorPayload> {}
+export class SupabaseAuthError extends Data.TaggedError("SupabaseAuthError")<AppErrorPayload> {}
+export class HttpError         extends Data.TaggedError("HttpError")        <AppErrorPayload> {}
+export class TimeoutError      extends Data.TaggedError("TimeoutError")     <AppErrorPayload> {}
+export class UnexpectedError   extends Data.TaggedError("UnexpectedError")  <AppErrorPayload> {}
+
+export type AuthError = SupabaseAuthError | UnexpectedError;
+export type DiscogsError =
+  | MissingEnvError
+  | SupabaseAuthError
+  | HttpError
+  | TimeoutError
+  | UnexpectedError;
+export type DatabaseError = UnexpectedError;
+
+export const missingEnvError = (message: string): MissingEnvError =>
+  new MissingEnvError({ message, retryable: false });
+
+export const supabaseAuthError = (message: string, cause?: unknown): SupabaseAuthError =>
+  new SupabaseAuthError({ message, cause, retryable: false });
+
+export const httpError = (status: number, message: string): HttpError =>
+  new HttpError({ message, status, retryable: false });
+
+export const timeoutError = (message: string, cause?: unknown): TimeoutError =>
+  new TimeoutError({ message, cause, retryable: true });
+
+export const unexpectedError = (
+  message = "Unexpected error",
+  cause?: unknown,
+): UnexpectedError => new UnexpectedError({ message, cause, retryable: true });
+
+export function formatError(error: AuthError | DiscogsError | DatabaseError): string {
   switch (error._tag) {
     case "HttpError":
       return `${error.message} (HTTP ${error.status ?? "unknown"})`;
@@ -113,14 +62,31 @@ export function formatAppError(error: AppError): string {
   }
 }
 
-export const appErrorMessage = formatAppError;
+export const errorMessage = formatError;
 
-export const toFailureError =
-  (type: AppErrorType, message: string) =>
-  (cause: Cause.Cause<AppError>): AppError =>
+export const toAuthFailure =
+  (message: string) =>
+  (cause: Cause.Cause<AuthError>): AuthError =>
     Option.match(Cause.failureOption(cause), {
-      onNone: () => new AppError(type, message, { cause }),
+      onNone: () => supabaseAuthError(message, cause),
       onSome: (value) => value,
     });
 
-export const isRetryableAppError = (error: AppError): boolean => error.retryable;
+export const toDiscogsFailure =
+  (message: string) =>
+  (cause: Cause.Cause<DiscogsError>): DiscogsError =>
+    Option.match(Cause.failureOption(cause), {
+      onNone: () => unexpectedError(message, cause),
+      onSome: (value) => value,
+    });
+
+export const toDatabaseFailure =
+  (message: string) =>
+  (cause: Cause.Cause<DatabaseError>): DatabaseError =>
+    Option.match(Cause.failureOption(cause), {
+      onNone: () => unexpectedError(message, cause),
+      onSome: (value) => value,
+    });
+
+export const isRetryableError = (error: AuthError | DiscogsError | DatabaseError): boolean =>
+  error.retryable;
