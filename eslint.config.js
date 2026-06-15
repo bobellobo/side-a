@@ -1,4 +1,13 @@
 const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
 
-module.exports = defineConfig([expoConfig]);
+const baseConfig = Array.isArray(expoConfig) ? expoConfig : [expoConfig];
+
+module.exports = defineConfig([
+	...baseConfig,
+	{
+		rules: {
+			"@typescript-eslint/array-type": "off",
+		},
+	},
+]);

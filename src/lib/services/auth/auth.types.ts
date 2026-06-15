@@ -1,17 +1,37 @@
-export type SignInWithEmailInput = {
-  readonly email: string;
-  readonly password: string;
-};
+import * as S from "effect/Schema";
 
-export type SignUpWithEmailInput = {
-  readonly email: string;
-  readonly password: string;
-};
+/* ************************************************ */
 
-export type RequestPasswordResetInput = {
-  readonly email: string;
-};
+export const SignInWithEmailInputSchema = S.Struct({
+  email: S.String,
+  password: S.String,
+});
 
-export type UpdatePasswordInput = {
-  readonly password: string;
-};
+export type SignInWithEmailInput = typeof SignInWithEmailInputSchema.Type;
+
+/* ************************************************ */
+
+export const SignUpWithEmailInputSchema = S.Struct({
+  email: S.String,
+  password: S.String,
+});
+
+export type SignUpWithEmailInput = typeof SignUpWithEmailInputSchema.Type;
+
+/* ************************************************ */
+
+export const RequestPasswordResetInputSchema = S.Struct({
+  email: S.String,
+});
+
+export type RequestPasswordResetInput = typeof RequestPasswordResetInputSchema.Type;
+
+/* ************************************************ */
+
+export const UpdatePasswordInputSchema = S.Struct({
+  password: S.String,
+});
+
+export type UpdatePasswordInput = typeof UpdatePasswordInputSchema.Type;
+
+/* ************************************************ */
