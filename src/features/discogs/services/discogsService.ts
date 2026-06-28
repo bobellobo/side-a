@@ -1,5 +1,5 @@
 import { Eff } from "@/lib/effect/types";
-import { DiscogsError, httpError, missingEnvError, unexpectedError } from "@/lib/errors";
+import { DiscogsError, unexpectedError } from "@/lib/errors";
 import { Context, Layer, pipe } from "effect";
 import * as Effect from "effect/Effect";
 
@@ -32,39 +32,6 @@ export const mockDiscogsServiceLayer = Layer.succeed(DiscogsService, {
       )
     );
   }
-});
-
-export const discogsApiServiceLayer = Layer.succeed(DiscogsService, {
-  searchReleases: (input) =>
-    Effect.gen(function* () {
-      const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN;
-
-      if (!token) {
-        return yield* Effect.fail(
-          missingEnvError("Missing EXPO_PUBLIC_DISCOGS_TOKEN for Discogs API requests."),
-        );
-      }
-
-      const response = yield* Effect.tryPromise({
-        try: () =>
-          fetch(
-            `https://api.discogs.com/database/search?q=${encodeURIComponent(input.query)}&type=release`,
-            {
-              headers: {
-                Authorization: `Discogs token=${token}`,
-              },
-            },
-          ),
-        catch: (cause) => unexpectedError("Unable to reach Discogs API.", cause),
-      });
-
-      if (!response.ok) {
-        return yield* Effect.fail(httpError(response.status, "Discogs API request failed."));
-      }
-
-      // Future implementation: decode response payload and map to DiscogsRelease[].
-      return [] as DiscogsReleases;
-    }),
 });
 
 

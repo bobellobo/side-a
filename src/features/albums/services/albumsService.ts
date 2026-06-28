@@ -12,20 +12,6 @@ export interface UserAlbumsServiceInterface {
 
 export const UserAlbumsService = Context.GenericTag<UserAlbumsServiceInterface>("UserAlbumsService");
 
-export const mockUserAlbumsServiceLayer = Layer.succeed(UserAlbumsService, {
-  addAlbumIdForUser: (input) => {
-    if (!input.userId) {
-      return Effect.fail(unexpectedError("Missing signed-in user id.", "Missing user id"));
-    }
-
-    if (!input.discogsAlbumId) {
-      return Effect.fail(unexpectedError("No selected album id to save.", "Missing album id"));
-    }
-
-    return Effect.void;
-  }
-});
-
 export const supabaseUserAlbumsServiceLayer = Layer.succeed(UserAlbumsService, {
   addAlbumIdForUser: (input) => pipe(
     Effect.tryPromise({

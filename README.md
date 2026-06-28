@@ -278,22 +278,25 @@ src/
 		index.tsx
 		(auth)/
 		(app)/
+	features/
+		auth/
+		albums/
+		discogs/
+	components/
+	utils/
+	types/
 	lib/
-		context/auth/
 		effect/
-		services/
-			auth/
-			discogs/
-			albums/
+		query/
 		supabase/
-		errors.ts
+		errors/
 ```
 
-## Implementation Detail: Discogs Layer Selection
+## Implementation Detail: Discogs Search Layer
 
 `searchDiscogsReleases` currently provides the mock layer by default. This is ideal for deterministic UI development.
 
-When you are ready to hit the real API, switch the provided layer in `src/lib/services/discogs/discogsService.ts` from `mockDiscogsServiceLayer` to `discogsApiServiceLayer`.
+The current implementation lives in `src/features/discogs/services/discogsService.ts` and is intentionally mock-first while the API decoding pipeline is still being designed.
 
 ## Quality Guardrails
 

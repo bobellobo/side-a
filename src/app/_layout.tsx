@@ -1,7 +1,7 @@
 import "../../global.css";
 
-import { AuthProvider } from "@/lib/context/auth/authProvider";
-import { queryClient } from "@/lib/queryClient";
+import { AuthProvider } from "@/features/auth";
+import { queryClient } from "@/lib/query/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { View } from "react-native";

@@ -1,5 +1,5 @@
+import { requestPasswordReset } from "@/features/auth";
 import { AuthError, errorMessage, toAuthFailure } from "@/lib/errors";
-import { requestPasswordReset } from "@/lib/services/auth/authService";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import { Link } from "expo-router";
@@ -29,8 +29,6 @@ export default function ForgotPasswordScreen() {
     setSubmitting(true);
     setError(null);
     setNotice(null);
-
-    // const main = 
 
     const exit = await Effect.runPromiseExit(
       requestPasswordReset({ email: email.trim() }),

@@ -1,8 +1,7 @@
-import { useAuth } from "@/lib/context/auth/authProvider";
+import { addAlbumIdForUser } from "@/features/albums";
+import { useAuth } from "@/features/auth";
+import { DiscogsRelease, searchDiscogsReleases } from "@/features/discogs";
 import { DatabaseError, DiscogsError, formatError, toDatabaseFailure, toDiscogsFailure } from "@/lib/errors";
-import { addAlbumIdForUser } from "@/lib/services/albums/albumsService";
-import { DiscogsRelease } from "@/lib/services/discogs/discogs.types";
-import { searchDiscogsReleases } from "@/lib/services/discogs/discogsService";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import { useState } from "react";

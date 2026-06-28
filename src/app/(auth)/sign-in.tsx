@@ -1,5 +1,5 @@
+import { signInWithEmail } from "@/features/auth";
 import { AuthError, errorMessage, toAuthFailure } from "@/lib/errors";
-import { signInWithEmail } from "@/lib/services/auth/authService";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import { Link, router } from "expo-router";
